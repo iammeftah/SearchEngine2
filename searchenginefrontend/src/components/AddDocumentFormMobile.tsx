@@ -1,14 +1,14 @@
-import React, { useState, useRef, useCallback } from 'react';
-import { Bold, Italic, Underline, Save, AlignLeft, AlignCenter, AlignRight, List, ListOrdered, ChevronDown } from 'lucide-react';
-import Toast from './Toast';
-import Loader from './Loader';
-import AddDocumentFormMobile from "./AddDocumentFormMobile";
+import React, { useState, useRef, useCallback, useEffect } from 'react';
+import { Bold, Italic, Underline, Save, AlignLeft, AlignCenter, AlignRight, List, ListOrdered, ChevronDown, Menu } from 'lucide-react';
+import Toast from "../components/Toast";
+import Loader from "../components/Loader";
+
 
 interface AddDocumentFormProps {
     addDocument: (title: string, content: string) => Promise<void>;
 }
 
-const AddDocumentForm: React.FC<AddDocumentFormProps> = ({ addDocument }) => {
+const AddDocumentFormMobile: React.FC<AddDocumentFormProps> = ({ addDocument }) => {
     const [title, setTitle] = useState('Untitled');
     const [isSaving, setIsSaving] = useState(false);
     const [activeFormats, setActiveFormats] = useState<Set<string>>(new Set());
@@ -17,6 +17,7 @@ const AddDocumentForm: React.FC<AddDocumentFormProps> = ({ addDocument }) => {
     const [showToast, setShowToast] = useState(false);
     const [toastMessage, setToastMessage] = useState('');
     const [toastType, setToastType] = useState<'success' | 'warning'>('success');
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Added sidebar state
     const editorRef = useRef<HTMLDivElement>(null);
 
     const updateActiveFormats = useCallback(() => {
@@ -60,14 +61,10 @@ const AddDocumentForm: React.FC<AddDocumentFormProps> = ({ addDocument }) => {
             await addDocument(title, editorRef.current.innerHTML);
             setTitle('Untitled');
             if (editorRef.current) editorRef.current.innerHTML = '';
-            setToastMessage('Document saved successfully!');
-            setToastType('success');
-            setShowToast(true);
+
         } catch (error) {
             console.error('Error saving document:', error);
-            setToastMessage('Error saving document. Please try again.');
-            setToastType('warning');
-            setShowToast(true);
+
         }
         setIsSaving(false);
     };
@@ -279,21 +276,38 @@ const AddDocumentForm: React.FC<AddDocumentFormProps> = ({ addDocument }) => {
         </div>
     );
 
-    React.useEffect(() => {
-        const handleClickOutside = () => {
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (isSidebarOpen && window.innerWidth < 768) {
+                const sidebar = document.querySelector('.sidebar');
+                if (sidebar && !sidebar.contains(event.target as Node)) {
+                    setIsSidebarOpen(false);
+                }
+            }
             setShowListOptions(false);
             setShowFontSizes(false);
         };
         document.addEventListener('click', handleClickOutside);
         return () => document.removeEventListener('click', handleClickOutside);
-    }, []);
+    }, [isSidebarOpen]);
 
     return (
-        <div className="min-h-screen py-20 bg-white dark:bg-neutral-950">
-            <form className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 ">
-                <div className="bg-neutral-100 dark:bg-neutral-900 p-4 rounded-2xl">
-                    <div className="grid grid-cols-[auto,1fr,auto] items-center gap-4 mb-8 text-neutral-600 dark:text-neutral-300 rounded-lg px-4 py-2 bg-white dark:bg-neutral-800">
-                        <div className="flex items-center gap-2">
+        <div className="min-h-screen bg-white dark:bg-neutral-950">
+
+            <div className="flex">
+                {/* Sidebar */}
+                <div className={`fixed inset-y-0 left-0 transform ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:relative md:translate-x-0 transition duration-200 ease-in-out z-30 bg-neutral-100 dark:bg-neutral-900 w-12 md:w-auto shadow-lg`}>
+                    {/* Floating menu button for mobile */}
+                    <button
+                        className="outline-none fixed z-20 -right-8 top-14 md:hidden bg-neutral-100 dark:bg-neutral-900 p-2 rounded-r-xl "
+                        onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                    >
+                        <Menu size={18} />
+                    </button>
+                    <div className="p-4">
+
+                        <div className="flex flex-col md:flex-row items-center md:items-center gap-2 pt-12 mb-4 text-neutral-600 dark:text-neutral-300">
+                            {/* Formatting buttons */}
                             {[
                                 { icon: Bold, format: 'bold', label: 'Bold' },
                                 { icon: Italic, format: 'italic', label: 'Italic' },
@@ -311,7 +325,7 @@ const AddDocumentForm: React.FC<AddDocumentFormProps> = ({ addDocument }) => {
                                             ? 'bg-neutral-700 dark:bg-neutral-300 text-white dark:text-neutral-900'
                                             : 'bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-300 dark:hover:bg-neutral-600'
                                     }`}
-                                    onClick={()=> handleFormatting(format)}
+                                    onClick={() => handleFormatting(format)}
                                     aria-label={label}
                                 >
                                     <Icon size={16} />
@@ -320,61 +334,66 @@ const AddDocumentForm: React.FC<AddDocumentFormProps> = ({ addDocument }) => {
                             <ListOptionsDropdown />
                             <FontSizeDropdown />
                         </div>
-                        <div /> {/* Spacer */}
-                        <button
-                            type="button"
-                            className="flex items-center h-8 px-2 rounded-full gap-2 bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-300 dark:hover:bg-neutral-600 text-neutral-900 dark:text-neutral-100"
-                            onClick={handleSave}
-                        >
-                            <Save size={16} />
-                            <span>Save</span>
-                        </button>
                     </div>
+                </div>
 
-                    <div className="px-2">
-                        <input
-                            type="text"
-                            value={title}
-                            onChange={handleTitleChange}
-                            placeholder="Untitled"
-                            className="w-full text-4xl font-bold mb-4 bg-transparent border-none outline-none placeholder-neutral-400 dark:placeholder-neutral-500 text-neutral-900 dark:text-neutral-100 caret-neutral-500"
-                        />
-                    </div>
-
+                {/* Main content */}
+                <div className="flex-1 py-28 px-4 md:px-8 md:py-8">
+                    <input
+                        type="text"
+                        value={title}
+                        onChange={handleTitleChange}
+                        placeholder="Untitled"
+                        className="w-full text-2xl md:text-4xl font-bold mb-4 bg-transparent border-none outline-none placeholder-neutral-400 dark:placeholder-neutral-500 text-neutral-900 dark:text-neutral-100"
+                    />
                     <div
                         ref={editorRef}
                         contentEditable
                         onInput={handleContentChange}
                         onKeyUp={updateActiveFormats}
                         onMouseUp={updateActiveFormats}
-                        className="px-6 min-h-[300px] outline-none text-neutral-900 dark:text-neutral-100 prose dark:prose-invert prose-lg max-w-none caret-neutral-900 dark:caret-neutral-100
-              [&>*]:mb-4
-              [&>p]:leading-relaxed
-              [&>h1]:text-4xl [&>h1]:font-bold [&>h1]:leading-tight
-              [&>h2]:text-3xl [&>h2]:font-bold [&>h2]:leading-tight
-              [&>h3]:text-2xl [&>h3]:font-bold [&>h3]:leading-tight
-              [&>ol]:list-decimal [&>ul]:list-disc
-              [&>ol,&>ul]:pl-8 [&>ol,&>ul]:mb-4
-              [&>ol>li,&>ul>li]:pl-4 [&>ol>li,&>ul>li]:mb-2
-              [&>ol>li::marker,&>ul>li::marker]:text-neutral-500
-              [&>ol>li::marker]:mr-4
-              [&>ul>li::marker]:mr-4
-              [&>ol]:relative [&>ul]:relative
-              [&>ol]:before:absolute [&>ol]:before:left-0 [&>ol]:before:top-0 [&>ol]:before:bottom-0 [&>ol]:before:w-8
-              [&>ul]:before:absolute [&>ul]:before:left-0 [&>ul]:before:top-0 [&>ul]:before:bottom-0 [&>ul]:before:w-8
-              [&>font[size='7']]:text-4xl
-              [&>font[size='5']]:text-2xl
-              [&>font[size='3']]:text-lg
-              [&>font[size='2']]:text-base"
+                        className="min-h-[300px] outline-none text-neutral-900 dark:text-neutral-100 prose dark:prose-invert prose-lg max-w-none caret-neutral-900 dark:caret-neutral-100 whitespace-pre-wrap break-words overflow-x-visible w-full word-wrap break-word word-break break-all
+[&>*]:mb-4
+[&>*]:max-w-full
+[&>p]:leading-relaxed
+[&>p]:break-words
+[&>p]:whitespace-pre-wrap
+[&>h1]:text-4xl [&>h1]:font-bold [&>h1]:leading-tight
+[&>h2]:text-3xl [&>h2]:font-bold [&>h2]:leading-tight
+[&>h3]:text-2xl [&>h3]:font-bold [&>h3]:leading-tight
+[&>ol]:list-decimal [&>ul]:list-disc
+[&>ol,&>ul]:pl-8 [&>ol,&>ul]:mb-4
+[&>ol>li,&>ul>li]:pl-4 [&>ol>li,&>ul>li]:mb-2
+[&>ol>li::marker,&>ul>li::marker]:text-neutral-500
+[&>ol>li::marker]:mr-4
+[&>ul>li::marker]:mr-4
+[&>ol]:relative [&>ul]:relative
+[&>ol]:before:absolute [&>ol]:before:left-0 [&>ol]:before:top-0 [&>ol]:before:bottom-0 [&>ol]:before:w-8
+[&>ul]:before:absolute [&>ul]:before:left-0 [&>ul]:before:top-0 [&>ul]:before:bottom-0 [&>ul]:before:w-8
+[&>font[size='7']]:text-4xl
+[&>font[size='5']]:text-2xl
+[&>font[size='3']]:text-lg
+[&>font[size='2']]:text-base"
                     />
 
-                    {isSaving && (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 flex items-center justify-center">
-                            <Loader />
-                        </div>
-                    )}
+                    <button
+                        type="button"
+                        className="mx-auto w-16 flex justify-center absolute bottom-4 right-0 left-0 items-center  h-8 px-4 rounded-full bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-300 dark:hover:bg-neutral-600 text-neutral-900 dark:text-neutral-100"
+                        onClick={handleSave}
+                    >
+                        <Save size={16}/>
+                        <span>Save</span>
+                    </button>
+
                 </div>
-            </form>
+            </div>
+
+            {isSaving && (
+                <div
+                    className="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 flex items-center justify-center">
+                    <Loader/>
+                </div>
+            )}
             {showToast && (
                 <Toast
                     message={toastMessage}
@@ -386,5 +405,5 @@ const AddDocumentForm: React.FC<AddDocumentFormProps> = ({ addDocument }) => {
     );
 };
 
-export default AddDocumentForm;
+export default AddDocumentFormMobile;
 

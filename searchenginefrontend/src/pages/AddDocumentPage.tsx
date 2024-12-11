@@ -5,6 +5,7 @@ import AddDocumentForm from '../components/AddDocumentForm';
 import Loader from '../components/Loader';
 import Toast from '../components/Toast';
 import { api } from '../api';
+import AddDocumentFormMobile from "../components/AddDocumentFormMobile";
 
 const AddDocumentPage: React.FC = () => {
     const [isLoading, setIsLoading] = useState(true);
@@ -49,12 +50,18 @@ const AddDocumentPage: React.FC = () => {
                 </div>
             ) : (
                 <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 0.3 }}
+                    initial={{opacity: 0}}
+                    animate={{opacity: 1}}
+                    transition={{duration: 0.3}}
                     className="px-4 sm:px-6 lg:px-8 "
                 >
-                    <AddDocumentForm addDocument={handleAddDocument} />
+                    <div className=" md:block hidden">
+                        <AddDocumentForm addDocument={handleAddDocument}/>
+                    </div>
+                    <div className=" md:hidden block">
+                        <AddDocumentFormMobile addDocument={handleAddDocument}/>
+                    </div>
+
                 </motion.div>
             )}
             {showToast && (
